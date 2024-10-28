@@ -277,16 +277,15 @@ acceptance_rate <- mean(accepted)
 cat("Acceptance rate:", acceptance_rate, "\n")
 
 # Plot the trace plot for x after burn-in
-plot(samples[, 1], type = "l", col = "blue", main = "2b) Trace Plot of x (after burn-in)",
+plot(samples[, 1], type = "l", col = "blue", main = "Trace Plot of x (after burn-in)",
      xlab = "Iteration", ylab = "x Value", lwd = 2)
+```
 
+```{r}
 library(goftest)
 
 mcmc_rst <- advheidel.diag(samples, test_type="cvm", custommetrics = TRUE)
 print(mcmc_rst)
-```
-
-```{r}
 plot(mcmc_rst)
 ```
 
@@ -301,7 +300,8 @@ We implemented comprehensive unit tests to ensure that each function operates as
 
 
 ```{r, eval=FALSE}
-# Example test case
+
+# Test 1: Basic functionality with a small numeric vector
 test_that("heidelWelchMetric works with a basic vector", {
   # Sample data for testing
   x <- c(5, 6, 7, 8, 9)
@@ -331,6 +331,45 @@ test_that("heidelWelchMetric works with a basic vector", {
     expect_true(result$Stationarity.Test[i])  # Assuming test passes for this example data
   }
 })
+
+# Test 2: Functionality with a normally distributed vector
+test_that("heidelWelchMetric calculates mean, variance, and half-width correctly", {
+  set.seed(123)
+  x <- rnorm(100, mean = 5, sd = 2)
+  result <- heidelWelchMetric(x)
+
+  # Loop through each discard level to validate expected mean, variance, and half-width
+  for (i in seq_along(result$Discard.Ratio)) {
+    discard_ratio <- result$Discard.Ratio[i]
+    trimmed_x <- x[(floor(length(x) * discard_ratio) + 1):length(x)]
+
+    expected_mean <- mean(trimmed_x)
+    expected_variance <- var(trimmed_x)
+    expected_halfwidth <- qt(1 - 0.05 / 2, df = length(trimmed_x) - 1) * sqrt(expected_variance / length(trimmed_x))
+
+    expect_equal(result$Mean[i], expected_mean, tolerance = 1e-8)
+    expect_equal(result$Variance[i], expected_variance, tolerance = 1e-8)
+    expect_equal(result$Half.Width[i], expected_halfwidth, tolerance = 1e-8)
+  }
+})
+
+# Test 3: Single value vector handling
+test_that("heidelWelchMetric handles single value vector", {
+  x <- c(10)
+  result <- heidelWelchMetric(x)
+
+  # Ensure correct handling of single value with expected NA values
+  expect_equal(result$Mean[1], 10)
+  expect_true(is.na(result$Variance[1]))
+  expect_true(is.na(result$Half.Width[1]))
+})
+
+# Test 4: Empty vector handling
+test_that("heidelWelchMetric raises an error for empty vector", {
+  x <- numeric(0)
+  expect_error(heidelWelchMetric(x), "Input vector must contain at least one value.")
+})
+
 ```
 
 

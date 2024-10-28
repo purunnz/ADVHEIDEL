@@ -26,7 +26,7 @@ test_that("Number of rows in results matches number of chains", {
 
 # Test 4: Results contain expected columns
 test_that("Results contain expected columns", {
-  result <- advheidel.diag(mcmc_obj, alpha = 0.05, eps = 0.1, test_type = "ks")
+  result <- advheidel.diag(mcmc_obj, alpha = 0.05, eps = 0.2, test_type = "ks")
   expected_columns <- c("Chain", "StationarityTest", "StartIteration", "PValue", "TestType", "HalfWidthTest", "Mean", "HalfWidth", "HalfWidthRatio")
   expect_true(all(expected_columns %in% colnames(result$results)))
 })
