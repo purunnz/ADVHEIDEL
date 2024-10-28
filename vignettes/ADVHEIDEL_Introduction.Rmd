@@ -1,0 +1,180 @@
+---
+title: "ADVHEIDEL_Introduction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ADVHEIDEL_Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(ADVHEIDEL)
+library(goftest)
+```
+
+
+## Introduction
+
+This vignette provides an overview of the `ADVHEIDEL` package, a tool for conducting Markov Chain Monte Carlo (MCMC) convergence diagnostics based on the **Heidelberger-Welch** method. Developed to support convergence assessment in probabilistic models, especially Bayesian inference, the `ADVHEIDEL` package enhances the traditional Heidelberger-Welch diagnostic with advanced stationarity tests, efficient computational handling of large datasets, and visualization tools for detailed analysis.
+
+The **Heidelberger-Welch diagnostic** is a powerful method that checks if MCMC samples have transitioned from an initial, unstable state (the "transient phase") to a stable, steady-state distribution. By discarding portions of early samples in incremental steps, this approach ensures that only well-mixed samples, reflective of the target distribution, are analyzed. This is especially valuable for models with complex probability distributions that can take longer to reach stability.
+
+## Key Methodology: Stepwise Data Discard in Stationarity Testing
+
+The Heidelberger-Welch method includes a unique, iterative data discarding approach to determine whether the chain has reached a stable distribution:
+
+1. **Initial Test and Discarding Iterations**:  
+   The diagnostic starts by applying a stationarity test to the full MCMC chain (e.g., the Cramer-von Mises test). If this first test fails, the initial 10% of samples is discarded, removing early values that may not yet represent the true distribution. The test is then reapplied to the trimmed chain.
+
+2. **Incremental Discards (10% Steps up to 50%)**:  
+   This process continues in increments of 10% (up to a maximum of 50% discard), with each test discarding additional data only if stationarity has not yet been achieved. At each discard level, a stationarity test assesses whether the remaining samples indicate convergence.
+
+3. **Final Convergence Validation**:  
+   When the test passes at any discard level, the analysis proceeds with only the stable, remaining samples. This progressive trimming approach strengthens the reliability of convergence checks, making the diagnostic more resilient to initial transient behavior and early instability in the chain.
+
+By iteratively refining the chain, the Heidelberger-Welch method effectively isolates and analyzes the steady-state samples, providing a robust diagnostic for complex MCMC models. This stepwise method is instrumental in ensuring the reliability of the analysis, especially for models with intricate convergence dynamics.
+
+
+
+## Package Features
+
+The `heidelbergerWelchDiag` package offers the following key features:
+
+- **Multiple Stationarity Tests**: Users can select from several stationarity tests, including:
+    - Kolmogorov-Smirnov (KS) test
+    - Cramer-von Mises (CVM) test
+    - Shapiro-Wilk test
+  
+- **Stepwise Discard Ratios**: The package calculates metrics at different discard levels (0%, 10%, ..., 50%) to ensure that initial transient states are excluded.
+
+- **Half-Width Test for Precision**: The half-width test assesses if the sample mean's confidence interval width is below a threshold, ensuring precision in the parameter estimates.
+
+- **Efficient Computation**: Optimized C++ code via Rcpp for high-performance calculations, particularly beneficial for large-scale MCMC simulations.
+
+- **Visualization Tools**: Trace plots, cumulative mean plots, and half-width plots for intuitive analysis of convergence.
+
+
+## Usage Example
+
+This section demonstrates how to use the package to apply the Heidelberger-Welch diagnostics to an MCMC sample.
+
+### Generating Sample Data
+
+Here, we generate a synthetic MCMC chain for demonstration purposes.
+
+```{r}
+# Sample MCMC chains
+set.seed(123)
+chain1 <- rnorm(1000, mean = 1, sd = 4)
+chain2 <- rnorm(1000, mean = 2, sd = 3)
+mcmc_data <- cbind(chain1, chain2)
+```
+
+### Diagnostic Overview
+
+To run the Heidelberger-Welch diagnostic with custom metrics, use the `advheidel.diag` function, which provides a thorough convergence analysis. Results can be viewed through `print` or `summary`.
+
+### 1. Running the Diagnostic
+- **`advheidel.diag`**: This function runs an MCMC convergence diagnostic, performing both stationarity and half-width tests. Custom metrics are calculated across discard ratios (0%, 10%, ..., 50%) for an in-depth evaluation of convergence.
+
+### 2. Viewing Results
+- **`print`**: Offers detailed chain-by-chain diagnostic results, including:
+    - **Stationarity and Half-Width Tests**: Checks if the chain has reached a stable distribution and if the confidence interval width meets the desired precision threshold.
+    - **Custom Metrics**: Displays additional metrics at varying discard ratios if enabled, providing insights into convergence trends.
+
+- **`summary`**: Summarizes the overall diagnostic results, showing the number of chains that passed or failed both the stationarity and half-width tests.
+
+```{r}
+
+# Apply the Heidelberger-Welch diagnostic
+result <- advheidel.diag(mcmc_data, custommetrics = TRUE)
+print(result)
+summary(result)
+```
+
+
+### Explanation of Output
+
+1. **Stationarity Test**: Verifies if the chain has reached a steady-state distribution, indicating that the MCMC chain has likely converged.
+  
+2. **Half-Width Test**: Measures the precision of the sample mean estimate by calculating the width of the confidence interval. If the interval is narrow relative to the mean, it suggests a precise estimate.
+
+3. **Custom Metrics**: Adds additional metrics across discard levels (0%, 10%, ..., 50%) for a robust diagnostic view, helping to assess convergence patterns at various points in the chain.
+
+
+
+
+### Visualizing Convergence
+
+You can also visualize convergence for each chain using `plot`:
+
+```{r}
+# Plot diagnostic results
+plot(result)
+```
+
+
+### Explanation of Output
+
+1. **Trace Plot**: Shows the progression of the MCMC chain over iterations. A stable plot without trends suggests that the chain is well-mixed and has converged.
+
+2. **Cumulative Mean Plot**: Displays the cumulative mean across iterations. A leveling off of this mean indicates convergence. The start iteration and overall mean are marked for reference.
+
+3. **Half-Width Plot**: Evaluates the precision of the mean estimate by plotting the confidence interval’s half-width. A smaller, stable half-width indicates sufficient precision in the estimate.
+
+
+## Implementation Details: `heidelWelchMetric` Custom Metric Function
+
+The core functionality of this package is implemented in C++ for optimized performance, especially with large datasets. The `heidelWelchMetric` function performs diagnostic calculations at various discard levels (0%, 10%, …, 50%) for the MCMC chain data:
+
+1. **Mean and Variance Calculation**: At each discard level, the mean and variance are computed on the trimmed data. This helps assess stability and consistency of the mean over different portions of the data.
+
+2. **Half-Width Calculation**: The function calculates the half-width of the confidence interval for each discard level, based on the trimmed sample's variance and size. The half-width ratio is then computed as the half-width divided by the mean, and it is tested against a predefined threshold to determine if the estimate’s precision is sufficient.
+
+3. **Stationarity Test (Cramer-von Mises)**: For each discard level, the Cramer-von Mises test is applied to check for stationarity, assessing whether the samples are drawn from a stable distribution. This test returns a p-value, and a result of "passed" or "failed" based on whether the p-value meets the chosen significance level.
+
+The function returns a DataFrame with the results for each discard level, including the mean, variance, half-width, half-width ratio, p-value from the stationarity test, and pass/fail indicators for both the half-width and stationarity tests.
+
+
+```cpp
+// Example of C++ code used within the package
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+DataFrame heidelWelchMetric(NumericVector x, double alpha = 0.05, double eps = 0.1) {
+  // Function code ...
+}
+```
+
+## Unit Testing and Validation
+
+We implemented comprehensive unit tests to ensure that each function operates as expected. The tests validate:
+
+- Accurate calculation of mean, variance, and half-width
+- Proper execution of stationarity and half-width tests
+- Correct results for different discard levels and alpha values
+
+```{r, eval=FALSE}
+# Example test case
+test_that("heidelWelchMetric calculates mean, variance, and half-width correctly", {
+  x <- rnorm(100, mean = 5, sd = 2)
+  result <- heidelWelchMetric(x)
+  expect_equal(result$Mean[1], mean(x), tolerance = 1e-8)
+})
+```
+
+
+## References
+
+1. Heidelberger, P., & Welch, P. D. (1983). *Simulation run length control in the presence of an initial transient*. Operations Research, 31(6), 1109-1144.
+2. R: The coda Package. (2024). *‘heidel.diag‘ function documentation*. Retrieved from [https://search.r-project.org/CRAN/refmans/coda/html/heidel.diag.html](https://search.r-project.org/CRAN/refmans/coda/html/heidel.diag.html)
+3. Cowles, M. K., & Carlin, B. P. (1996). *Markov chain Monte Carlo convergence diagnostics: a comparative review*. Journal of the American Statistical Association, 91(434), 883-904.
+4. Sahlin, K. (2011). *Estimating convergence of Markov chain Monte Carlo simulations*. Mathematical Statistics, Stockholm University, Sweden.

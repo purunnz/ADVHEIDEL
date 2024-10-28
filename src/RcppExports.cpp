@@ -10,19 +10,23 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// rcpp_hello
-List rcpp_hello();
-RcppExport SEXP _ADVHEIDEL_rcpp_hello() {
+// heidelWelchMetric
+DataFrame heidelWelchMetric(NumericVector x, double alpha, double eps, std::string test_type);
+RcppExport SEXP _ADVHEIDEL_heidelWelchMetric(SEXP xSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP test_typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpp_hello());
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type test_type(test_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(heidelWelchMetric(x, alpha, eps, test_type));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ADVHEIDEL_rcpp_hello", (DL_FUNC) &_ADVHEIDEL_rcpp_hello, 0},
+    {"_ADVHEIDEL_heidelWelchMetric", (DL_FUNC) &_ADVHEIDEL_heidelWelchMetric, 4},
     {NULL, NULL, 0}
 };
 
