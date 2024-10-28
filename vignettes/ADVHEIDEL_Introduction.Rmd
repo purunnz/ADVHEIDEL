@@ -155,6 +155,142 @@ DataFrame heidelWelchMetric(NumericVector x, double alpha = 0.05, double eps = 0
 }
 ```
 
+
+## Unusual Cases in MCMC Convergence
+
+
+### Non-Convergent MCMC Chains Case
+
+This code is designed to assess whether each chain has reached stationarity (a stable distribution) and to verify if the sample size is adequate for estimating the desired statistics.
+Given the non-converging nature of chain1 and chain2, the advheidel.diag output is expected to indicate failure in the stationarity and convergence tests, as both chains exhibit trends or high variability that prevent stabilization.
+
+
+```{r}
+# Sum difficult Case 
+set.seed(123)
+chain1 <- cumsum(rnorm(1000, mean = 1, sd = 1))  
+chain2 <- rnorm(1000, mean = 5, sd = 10)          
+mcmc_data <- cbind(chain1, chain2)
+
+# Run advheidel.diag with custom metrics enabled
+result_default <- advheidel.diag(mcmc_data, test_type="cvm", custommetrics = TRUE)
+print(result_default)
+plot(result_default)
+
+```
+
+### Convergent MCMC Sampling with Metropolis-Hastings Algorithm
+
+This code implements the Metropolis-Hastings (MH) algorithm, a Markov Chain Monte Carlo (MCMC) method used to sample from a complex target distribution. The code then analyzes the generated samples to check if the chain has converged using advheidel.diag.
+
+
+```{r}
+# --------------------------------------------------------------
+# Proposal distribution function for an n-dimensional Normal distribution
+proposal_distribution <- function(current_position, proposal_sd) {
+  # current_position: A vector representing the current position (e.g., c(x, y))
+  # proposal_sd: Standard deviation of the proposal distribution (scalar or vector)
+  
+  # Generate a new proposed position from an n-dimensional Normal distribution
+  new_position <- rnorm(length(current_position), mean = current_position, sd = proposal_sd)
+  return(new_position)
+}
+
+# Target distribution function
+target_distribution <- function(position) {
+  # position: A vector representing the current position (e.g., c(x, y))
+  
+  x <- position[1]
+  y <- position[2]
+  
+  C <- 1 / (2 * pi)
+  
+  # Calculate the value of the target distribution based on the given definition
+  if (-5 < x && x < 5 && -5 < y && y < 5) {
+    pi_value <- C * exp(- (100 * (y - x^2)^2 + (1 - x)^2) / 20)
+  } else {
+    pi_value <- 0  # Assign 0 if the position is outside the defined range
+  }
+  
+  return(pi_value)
+}
+
+# Metropolis-Hastings algorithm function definition
+metropolis_hastings <- function(initial_position, n_iterations, proposal_sd, burn_in=0) {
+  
+  set.seed(747)
+  # Initialize the algorithm
+  current_position <- initial_position
+  samples <- matrix(NA, nrow = n_iterations, ncol = length(initial_position))
+  samples[1, ] <- current_position
+  
+  # Initialize acceptance vector
+  accepted <- numeric(n_iterations)
+  
+  for (i in 2:n_iterations) {
+    # Generate a new proposed position using the proposal distribution
+    proposed_position <- proposal_distribution(current_position, proposal_sd)
+    
+    # Calculate the target distribution value at the current and proposed positions
+    current_value <- target_distribution(current_position)
+    proposed_value <- target_distribution(proposed_position)
+    
+    # Compute the acceptance ratio and acceptance probability
+    acceptance_ratio <- proposed_value / current_value
+    acceptance_probability <- min(1, acceptance_ratio)
+    
+    # Determine whether to accept or reject the proposed position
+    if (runif(1) < acceptance_probability) {
+      current_position <- proposed_position  # Accept the proposed position
+      accepted[i] <- 1
+    } else {
+      accepted[i] <- 0
+    }
+    
+    # Store the current position as a sample
+    samples[i, ] <- current_position
+  }
+  
+  # Remove burn-in samples if specified
+  final_samples <- samples[(burn_in + 1):n_iterations, ]
+  accepted <- accepted[(burn_in + 1):n_iterations]
+  
+  return(list(samples = final_samples, accepted = accepted))
+}
+
+
+# MCMC specifications
+proposal_sd <- 0.05
+n_iterations <- 500
+initial_position <- c(0.1, 1)
+burn_in <- 250
+
+# Run the Metropolis-Hastings algorithm
+result <- metropolis_hastings(initial_position, n_iterations, proposal_sd, burn_in)
+
+# Extract the samples and accepted values
+samples <- result$samples
+accepted <- result$accepted
+
+# Acceptance rate
+acceptance_rate <- mean(accepted)
+cat("Acceptance rate:", acceptance_rate, "\n")
+
+# Plot the trace plot for x after burn-in
+plot(samples[, 1], type = "l", col = "blue", main = "2b) Trace Plot of x (after burn-in)",
+     xlab = "Iteration", ylab = "x Value", lwd = 2)
+
+library(goftest)
+
+mcmc_rst <- advheidel.diag(samples, test_type="cvm", custommetrics = TRUE)
+print(mcmc_rst)
+```
+
+```{r}
+plot(mcmc_rst)
+```
+
+
 ## Unit Testing and Validation
 
 We implemented comprehensive unit tests to ensure that each function operates as expected. The tests validate:
@@ -162,6 +298,7 @@ We implemented comprehensive unit tests to ensure that each function operates as
 - Accurate calculation of mean, variance, and half-width
 - Proper execution of stationarity and half-width tests
 - Correct results for different discard levels and alpha values
+
 
 ```{r, eval=FALSE}
 # Example test case
