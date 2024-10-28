@@ -24,6 +24,7 @@ library(goftest)
 
 This vignette provides an overview of the `ADVHEIDEL` package, a tool for conducting Markov Chain Monte Carlo (MCMC) convergence diagnostics based on the **Heidelberger-Welch** method. Developed to support convergence assessment in probabilistic models, especially Bayesian inference, the `ADVHEIDEL` package enhances the traditional Heidelberger-Welch diagnostic with advanced stationarity tests, efficient computational handling of large datasets, and visualization tools for detailed analysis.
 
+
 The **Heidelberger-Welch diagnostic** is a powerful method that checks if MCMC samples have transitioned from an initial, unstable state (the "transient phase") to a stable, steady-state distribution. By discarding portions of early samples in incremental steps, this approach ensures that only well-mixed samples, reflective of the target distribution, are analyzed. This is especially valuable for models with complex probability distributions that can take longer to reach stability.
 
 ## Key Methodology: Stepwise Data Discard in Stationarity Testing
