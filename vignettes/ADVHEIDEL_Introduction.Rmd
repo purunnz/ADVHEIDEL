@@ -165,10 +165,34 @@ We implemented comprehensive unit tests to ensure that each function operates as
 
 ```{r, eval=FALSE}
 # Example test case
-test_that("heidelWelchMetric calculates mean, variance, and half-width correctly", {
-  x <- rnorm(100, mean = 5, sd = 2)
+test_that("heidelWelchMetric works with a basic vector", {
+  # Sample data for testing
+  x <- c(5, 6, 7, 8, 9)
   result <- heidelWelchMetric(x)
-  expect_equal(result$Mean[1], mean(x), tolerance = 1e-8)
+
+  # Loop through each discard level result in heidelWelchMetric output
+  for (i in seq_along(result$Discard.Ratio)) {
+    # Extract expected values
+    discard_ratio <- result$Discard.Ratio[i]
+    trimmed_x <- x[(floor(length(x) * discard_ratio) + 1):length(x)]
+
+    # Calculate expected values based on trimmed data
+    expected_mean <- mean(trimmed_x)
+    expected_variance <- var(trimmed_x)
+    expected_halfwidth <- qt(1 - 0.05 / 2, df = length(trimmed_x) - 1) * sqrt(expected_variance / length(trimmed_x))
+
+    # Check mean and variance
+    expect_equal(result$Mean[i], expected_mean, tolerance = 1e-8)
+    expect_equal(result$Variance[i], expected_variance, tolerance = 1e-8)
+
+    # Check half-width and p-value with adjusted tolerance for minor differences
+    expect_equal(result$Half.Width[i], expected_halfwidth, tolerance = 1e-8)
+    expect_equal(result$p.value[i], 1, tolerance = 0.01)  # Adjusted tolerance to 0.01 for p-value
+
+    # Check half-width ratio and stationarity results based on predefined thresholds
+    expect_equal(result$Half.Width.Ratio[i], abs(expected_halfwidth / expected_mean), tolerance = 1e-8)
+    expect_true(result$Stationarity.Test[i])  # Assuming test passes for this example data
+  }
 })
 ```
 
